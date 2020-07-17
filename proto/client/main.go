@@ -4,10 +4,13 @@ import (
 	"context"
 	"flag"
 	"log"
+	"proto-example/proto/consul"
 
 	"github.com/gogo/protobuf/jsonpb"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/balancer/roundrobin"
 	"google.golang.org/grpc/encoding"
+	"google.golang.org/grpc/resolver"
 )
 
 type Reply struct {
@@ -29,14 +32,16 @@ func init() {
 	})
 	flag.StringVar(&data, "data", `{"name":"cae","age":1}`, `{"name":"cae","age":1}`)
 	flag.StringVar(&method, "method", "/testproto.Greeter/SayHello", `/testproto.Greeter/SayHello`)
-	flag.StringVar(&addr, "addr", "127.0.0.1:8080", `127.0.0.1:8080`)
+	flag.StringVar(&addr, "addr", "consul://127.0.0.1:8500/hello_server", `consul://127.0.0.1:8500/hello_server`)
 }
 
 func main() {
+	resolver.Register(consul.NewBuilder())
 	flag.Parse()
 	opts := []grpc.DialOption{
 		grpc.WithInsecure(),
 		grpc.WithDefaultCallOptions(grpc.CallContentSubtype(JSON{}.Name())),
+		grpc.WithBalancerName(roundrobin.Name),
 	}
 	conn, err := grpc.Dial(addr, opts...)
 	if err != nil {

@@ -80,7 +80,7 @@ func registerToConsul() {
 		Name: "hello_server",
 		Tag:  []string{"hello_server"},
 		Ip:   hostname,
-		Port: 8080,
+		Port: 8081,
 	})
 	if err != nil {
 		panic(err)
@@ -104,7 +104,7 @@ func runServer(addr string) {
 }
 
 func main() {
-	runServer(":8080")
+	runServer(":8081")
 }
 
 // JSON is impl of encoding.Codec
