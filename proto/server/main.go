@@ -7,14 +7,10 @@ import (
 	"fmt"
 	"io"
 	"log"
-	"net"
-	"os"
-	"proto-example/proto/consul"
 	pb "proto-example/proto/testproto"
 
 	"github.com/gogo/protobuf/jsonpb"
 	"github.com/gogo/protobuf/proto"
-	"google.golang.org/grpc"
 	"google.golang.org/grpc/encoding"
 	"google.golang.org/grpc/health/grpc_health_v1"
 )
@@ -58,6 +54,7 @@ func (s *helloServer) StreamHello(ss pb.Greeter_StreamHelloServer) error {
 
 // HealthImpl is impl of grpc_health_v1.HealthServer interface
 type HealthImpl struct {
+	grpc_health_v1.UnimplementedHealthServer
 }
 
 func (h *HealthImpl) Check(ctx context.Context, req *grpc_health_v1.HealthCheckRequest) (*grpc_health_v1.HealthCheckResponse, error) {
@@ -71,40 +68,23 @@ func (h *HealthImpl) Watch(req *grpc_health_v1.HealthCheckRequest, w grpc_health
 	return nil
 }
 
-func registerToConsul() {
-	hostname, err := os.Hostname()
-	if err != nil {
-		panic(err)
+func runServer() {
+	conf := &ServerConfig{
+		Network: "tcp",
+		Addr:    ":8080",
 	}
-	err = consul.RegisterService("127.0.0.1:8500", &consul.ConsulService{
-		Name: "hello_server",
-		Tag:  []string{"hello_server"},
-		Ip:   hostname,
-		Port: 8080,
-	})
-	if err != nil {
-		panic(err)
-	}
-}
+	server := NewServer(conf)
 
-func runServer(addr string) {
-	log.Printf("start grpc server on: %s\n", addr)
-	server := grpc.NewServer()
-	pb.RegisterGreeterServer(server, &helloServer{addr: addr})
-	grpc_health_v1.RegisterHealthServer(server, &HealthImpl{})
-	lis, err := net.Listen("tcp", addr)
-	if err != nil {
-		panic(err)
-	}
-	registerToConsul()
-	err = server.Serve(lis)
-	if err != nil {
+	pb.RegisterGreeterServer(server.GrpcServer(), &helloServer{addr: conf.Addr})
+	grpc_health_v1.RegisterHealthServer(server.GrpcServer(), &HealthImpl{})
+
+	if err := server.Start(); err != nil {
 		panic(err)
 	}
 }
 
 func main() {
-	runServer(":8080")
+	runServer()
 }
 
 // JSON is impl of encoding.Codec
